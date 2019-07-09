@@ -19,13 +19,11 @@ db = branch.connect(server, name, True) # Starts connection with cache enabled
 id = db.createObject('{"Name": "Test 1"}')
 # 2 - Creates an affiliated collection 
 id2 = db.createChild(id)
-# 3 - Selects collection (optional, you can execute a command in a specific collection with an argument, see step 6)
-db.selectCollection(id2)
-# 4 - Creates a new object/document inside the selected collection
-id3 = db.createObject('{"Name": "Test 2"}')
-# 5 - Creates an affiliated collection 
-id4 = db.createChild(id3)
-# 6 - Creates a new object/document inside collection id4
+# 3 - Creates a new object/document inside collection id2
+id3 = db.createObject('{"Name": "Test 2"}', id2)
+# 4 - Creates an affiliated collection 
+id4 = db.createChild(id3, id2)
+# 5 - Creates a new object/document inside collection id4
 id5 = db.createObject('{"Name": "Test 3"}', id4)
 
 # 6 - Gets id3's child and compares if equal to id4
@@ -43,8 +41,8 @@ if db.searchObject('{"Name": "Test 4"}',id4) != None:
 # 10 - Deletes id5
 db.deleteObject(id5, id4)
 
-# 10 - Checks if id, id2, id3 and id4 are ancestors of something
-if db.isAncestor(id, "root"):
+# 11 - Checks if id, id2, id3 and id4 are ancestors of something
+if db.isAncestor(id):
     print("object id at root collection is an ancestor")
 if db.isAncestor(id2):
     print("collection id2 is an ancestor")
@@ -52,23 +50,22 @@ if not(db.isAncestor(id3, id2)):
     print("Object id3 is not an ancestor") 
 if not(db.isAncestor(id4)):
     print("collection id4 is not an ancestor") 
-# 11 - Selects id4 and prints its path
-db.selectCollection(id4)
-print(db.getPath())
+# 12 - Prints id4 path
+print(db.getPath(id4))
 
-# 12 - Deletes id3 child (id4)
+# 13 - Deletes id3 child (id4)
 db.deleteChild(id3, id2)
 
-# 13 - Prints all collections
+# 14 - Prints all collections
 print(db.getCollections())
 
-# 14 - Print all ids
+# 15 - Print all ids
 print("id is " + id)
 print("id2 is " + id2)
 print("id3 is " + id3)
 print("id4 is " + id4)
 print("id5 is " + id5)
 
-# 15 - Print time needed to execute all operations
+# 16 - Print time needed to execute all operations
 finish = time.time()
 print("Time from start to finish: %f seconds" % (finish - start))

@@ -30,7 +30,6 @@ class connect():
 			print("Creating root and index collections...")
 			self.createCollection("root")
 			self.createCollection("index")
-		self.collection = "root"
 		print("Client ready!\n")
 	
 	# Collection Functions
@@ -49,15 +48,10 @@ class connect():
 		if self.cache:
 			self.collectionNames.append(collection)
 	
-	def readCollection(self, collection=""):
-		if collection == "":
-			collection = self.collection
+	def readCollection(self, collection="root"):
 		return list(self.db[collection].find({}))
 	
-	def deleteCollection(self, collection=""):
-		if collection == "":
-			collection = self.collection
-		
+	def deleteCollection(self, collection="root"):
 		if collection in ["index","root"]:
 			raise PermissionError("%s can't be deleted!" % collection)
 		if not(self.collectionExists(collection)):
@@ -69,13 +63,8 @@ class connect():
 		if self.cache:
 			self.collectionNames.remove(collection)
 	
-	def selectCollection(self, collection):
-		self.collection = collection
-	
 	# Object Functions
-	def createObject(self, value, collection=""):
-		if collection == "":
-			collection = self.collection
+	def createObject(self, value, collection="root"):
 		if isinstance(value, str):
 			value = json.loads(value)
 		
@@ -85,10 +74,7 @@ class connect():
 			self.index[str(insert.inserted_id)] = value["path"]
 		return str(insert.inserted_id)
 
-	def readObject(self, obj_id, collection=""):
-		if collection == "":
-			collection = self.collection
-
+	def readObject(self, obj_id, collection="root"):
 		id = {}
 		id["_id"] = ObjectId(obj_id)
 		if not(self.objectExists(id, collection)):
@@ -99,9 +85,7 @@ class connect():
 			return id
 		return self.db[collection].find(id).limit(1)[0]
 
-	def updateObject(self, obj_id, value, collection=""):
-		if collection == "":
-			collection = self.collection
+	def updateObject(self, obj_id, value, collection="root"):
 		if collection == "index":
 			raise PermissionError("Index can't have its objects updated!")
 
@@ -115,9 +99,7 @@ class connect():
 			changes["$set"] = value
 		self.db[collection].update(id,changes)
 
-	def deleteObject(self, obj_id, collection=""):
-		if collection == "":
-			collection = self.collection
+	def deleteObject(self, obj_id, collection="root"):
 		if not(self.objectExists(obj_id, collection)):
 			raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
 		if collection != "index" and self.hasChild(obj_id, collection):
@@ -129,10 +111,7 @@ class connect():
 		if collection == "index" and self.cache:
 			del self.index[obj_id]
 
-	def objectExists(self, value, collection=""):
-		if collection == "":
-			collection = self.collection
-
+	def objectExists(self, value, collection="root"):
 		if isinstance(value, str):
 			if ObjectId.is_valid(value):
 				if collection == "index" and self.cache:
@@ -153,9 +132,7 @@ class connect():
 				return False
 		return bool(self.db[collection].count_documents(value, limit = 1))
 	
-	def searchObject(self, value, collection=""):
-		if collection == "":
-			collection = self.collection
+	def searchObject(self, value, collection="root"):
 		if collection == "index":
 			raise PermissionError("Index isn't searchable!")
 		if isinstance(value, str):
@@ -166,18 +143,14 @@ class connect():
 		return None
 	
 	# Index Functions
-	def getPath(self, collection=""):
-		if collection == "":
-			collection = self.collection
+	def getPath(self, collection="root"):
 		if collection == "root":
 			return "/"
 
 		parent = self.readObject(collection, "index")
 		return parent["path"]
 
-	def hasChild(self, obj_id, collection=""):
-		if collection == "":
-			collection = self.collection
+	def hasChild(self, obj_id, collection="root"):
 		value = {}
 		path = self.getPath(collection)
 
@@ -186,13 +159,10 @@ class connect():
 		value["path"] = path + obj_id
 		return self.objectExists(value, "index")
 	
-	def isAncestor(self, obj_id, collection=""):
+	def isAncestor(self, obj_id, collection="root"):
 		if self.collectionExists(obj_id):
 			path = self.getPath(obj_id)
 		else:
-			if collection == "":
-				collection = self.collection
-			
 			path = self.getChild(obj_id, collection)
 			if path == None:
 				return False
@@ -203,9 +173,7 @@ class connect():
 		value = {"path": {"$regex": path}}
 		return self.objectExists(value, "index")
 
-	def createChild(self, obj_id, collection=""):
-		if collection == "":
-			collection = self.collection
+	def createChild(self, obj_id, collection="root"):
 		value = {}
 		path = self.getPath(collection)
 
@@ -219,16 +187,12 @@ class connect():
 		self.createCollection(str(id))
 		return str(id)
 	
-	def getParent(self, collection=""):
-		if collection == "":
-			collection = self.collection
+	def getParent(self, collection="root"):
 		path = self.getPath(collection)
 		path = path.split("/")
 		return path[len(path) - 1]
 
-	def getChild(self, obj_id, collection=""):
-		if collection == "":
-			collection = self.collection		
+	def getChild(self, obj_id, collection="root"):		
 		path = self.getPath(collection)
 		if not(path.endswith("/")):
 			path += "/"
@@ -240,10 +204,7 @@ class connect():
 			return str(self.db["index"].find(search).limit(1)[0]["_id"])
 		return None
 
-	def deleteChild(self, obj_id, collection=""):
-		if collection == "":
-			collection = self.collection
-		
+	def deleteChild(self, obj_id, collection="root"):
 		child = self.getChild(obj_id, collection)
 		if child == None:
 			raise FileNotFoundError(obj_id + " at " + collection + " doesn't have a child!")
