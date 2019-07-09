@@ -7,11 +7,13 @@ Author: Daniel P. Stuart
 """
 import branch
 import json
+import time
 
+start = time.time()
 server = "" # Insert here your server URL
 name = "test" # Database name (It'll be created by BranchDB)
 
-db = branch.connect(server, name) # Starts connection
+db = branch.connect(server, name, True) # Starts connection with cache enabled
 
 # 1 - Creates an object/document
 id = db.createObject('{"Name": "Test 1"}')
@@ -59,3 +61,14 @@ db.deleteChild(id3, id2)
 
 # 13 - Prints all collections
 print(db.getCollections())
+
+# 14 - Print all ids
+print("id is " + id)
+print("id2 is " + id2)
+print("id3 is " + id3)
+print("id4 is " + id4)
+print("id5 is " + id5)
+
+# 15 - Print time needed to execute all operations
+finish = time.time()
+print("Time from start to finish: %f seconds" % (finish - start))

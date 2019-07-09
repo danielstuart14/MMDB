@@ -19,7 +19,7 @@
 - <b>Users and permissions</b>: the whole reason this was created, it should allow each permission group to have a certain kind of access to the multiple levels of the database.
 - <b>Queries with multiple actions</b>: right now, changes to the database are done one at a time. Example: you can't update more than one document with a single command.
 - <b>Delete ancestors</b>: in the current implementation, elements can only be deleted after their descendants have been removed.
-- <b>Cache collection names and index</b>: this should uplift performance, most checks would be done locally and only when there was a change to these elements the cache would be updated.
+- <b>Sync local cache</b>: cache, currently, won't be updated if any change to index/collections is done remotely.
 - <b>Obtain affiliations as JSON</b>: should assemble and return a JSON representation of the affiliations.
 - <b>Add own exceptions</b>: even though python's own exceptions fit well, it would be better if BranchDB exceptions were unique to it. This is an essential feature since it would change the way you interact with the module.
 

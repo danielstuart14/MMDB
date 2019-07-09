@@ -10,15 +10,22 @@ This software is licensed under Apache License 2.0
 import pymongo
 import json
 from bson.objectid import ObjectId
+import re
 
 # MongoDB Connection
 class connect():
-	def __init__(self, server, name):
+	def __init__(self, server, name, cache=False):
 		print("Initializing client...")
 		client = pymongo.MongoClient(server)
+
 		if not(name in client.database_names()):
 			print("Creating %s database..." % name)
 		self.db = client[name]
+
+		self.cache = False
+		if cache:
+			self.cacheEnable()
+
 		if not(self.collectionExists("root")) or not(self.collectionExists("index")):
 			print("Creating root and index collections...")
 			self.createCollection("root")
@@ -28,6 +35,8 @@ class connect():
 	
 	# Collection Functions
 	def getCollections(self):
+		if self.cache:
+			return self.collectionNames
 		return self.db.collection_names()
 	
 	def collectionExists(self, collection):
@@ -37,6 +46,8 @@ class connect():
 
 	def createCollection(self, collection):
 		self.db.create_collection(collection)
+		if self.cache:
+			self.collectionNames.append(collection)
 	
 	def readCollection(self, collection=""):
 		if collection == "":
@@ -46,11 +57,17 @@ class connect():
 	def deleteCollection(self, collection=""):
 		if collection == "":
 			collection = self.collection
+		
 		if collection in ["index","root"]:
 			raise PermissionError("%s can't be deleted!" % collection)
+		if not(self.collectionExists(collection)):
+			raise FileNotFoundError("%s doesn't exist!" % collection)
 		if self.isAncestor(collection):
 			raise FileExistsError("%s has descendants!" % collection)
+		
 		self.db[collection].drop()
+		if self.cache:
+			self.collectionNames.remove(collection)
 	
 	def selectCollection(self, collection):
 		self.collection = collection
@@ -62,22 +79,32 @@ class connect():
 		if isinstance(value, str):
 			value = json.loads(value)
 		
-		value = self.db[collection].insert_one(value)
-		return str(value.inserted_id)
+		insert = self.db[collection].insert_one(value)
+
+		if collection == "index" and self.cache:
+			self.index[str(insert.inserted_id)] = value["path"]
+		return str(insert.inserted_id)
 
 	def readObject(self, obj_id, collection=""):
 		if collection == "":
 			collection = self.collection
-		
+
 		id = {}
 		id["_id"] = ObjectId(obj_id)
 		if not(self.objectExists(id, collection)):
 			raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
+		
+		if collection == "index" and self.cache:
+			id["path"] = self.index[obj_id]
+			return id
 		return self.db[collection].find(id).limit(1)[0]
 
 	def updateObject(self, obj_id, value, collection=""):
 		if collection == "":
 			collection = self.collection
+		if collection == "index":
+			raise PermissionError("Index can't have its objects updated!")
+
 		id = {}
 		id["_id"] = ObjectId(obj_id)
 		
@@ -91,26 +118,46 @@ class connect():
 	def deleteObject(self, obj_id, collection=""):
 		if collection == "":
 			collection = self.collection
+		if not(self.objectExists(obj_id, collection)):
+			raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
 		if collection != "index" and self.hasChild(obj_id, collection):
 			raise FileExistsError(obj_id + " at " + collection + " has a child!")
 
 		id = {}
 		id["_id"] = ObjectId(obj_id)
 		self.db[collection].remove(id, True)
-	
+		if collection == "index" and self.cache:
+			del self.index[obj_id]
+
 	def objectExists(self, value, collection=""):
 		if collection == "":
 			collection = self.collection
+
 		if isinstance(value, str):
 			if ObjectId.is_valid(value):
+				if collection == "index" and self.cache:
+					return value in self.index
 				value = {"_id": ObjectId(value)}
 			else:
 				value = json.loads(value)
+
+		if collection == "index" and self.cache:
+			if "_id" in value:
+				return str(value["_id"]) in self.index
+			if isinstance(value["path"], str):
+				return value["path"] in self.index.values()
+			if "$regex" in value["path"]:
+				regex = re.compile(value["path"]["$regex"])
+				if any(regex.match(path) for path in self.index.values()):
+					return True
+				return False
 		return bool(self.db[collection].count_documents(value, limit = 1))
 	
 	def searchObject(self, value, collection=""):
 		if collection == "":
 			collection = self.collection
+		if collection == "index":
+			raise PermissionError("Index isn't searchable!")
 		if isinstance(value, str):
 			value = json.loads(value)
 
@@ -204,3 +251,19 @@ class connect():
 			raise FileExistsError(obj_id + " at " + collection + " has descendants!")
 		self.deleteCollection(child)
 		self.deleteObject(child, "index")
+	
+	# Cache Functions
+	def cacheEnable(self):
+		print("Caching collections and index...")
+		self.cache = True
+		self.collectionNames = self.db.collection_names()
+
+		self.index = {}
+		for obj in self.db["index"].find():
+			self.index[str(obj["_id"])] = obj["path"]
+	
+	def cacheDisable(self):
+		print("Disabling cache...")
+		self.cache = False
+		self.collectionNames = None
+		self.index = None
