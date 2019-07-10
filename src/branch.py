@@ -21,15 +21,15 @@ class connect():
 		if not(name in client.database_names()):
 			print("Creating %s database..." % name)
 		self.db = client[name]
-
 		self.cache = False
-		if cache:
-			self.cacheEnable()
 
 		if not(self.collectionExists("root")) or not(self.collectionExists("index")):
 			print("Creating root and index collections...")
 			self.createCollection("root")
 			self.createCollection("index")
+		
+		if cache:
+			self.cacheEnable()
 		print("Client ready!\n")
 	
 	# Collection Functions
@@ -215,6 +215,8 @@ class connect():
 	
 	# Cache Functions
 	def cacheEnable(self):
+		if self.cache:
+			raise AssertionError("Cache is already enabled!")
 		print("Caching collections and index...")
 		self.cache = True
 		self.collectionNames = self.db.collection_names()
@@ -224,7 +226,9 @@ class connect():
 			self.index[str(obj["_id"])] = obj["path"]
 	
 	def cacheDisable(self):
+		if not(self.cache):
+			raise AssertionError("Cache is already disabled!")
 		print("Disabling cache...")
 		self.cache = False
 		self.collectionNames = None
-		self.index = None
+		self.index = None 
