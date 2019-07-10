@@ -201,6 +201,8 @@ class connect():
 		search = {}
 		search["path"] = path
 		if self.objectExists(search, "index"):
+			if self.cache:
+				return list(self.index.keys())[list(self.index.values()).index(path)]
 			return str(self.db["index"].find(search).limit(1)[0]["_id"])
 		return None
 
