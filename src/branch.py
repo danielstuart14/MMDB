@@ -22,6 +22,7 @@ class connect():
 			print("Creating %s database..." % name)
 		self.db = client[name]
 		self.cache = False
+		self.cacheHang = False
 
 		if not(self.collectionExists("root")) or not(self.collectionExists("index")):
 			print("Creating root and index collections...")
@@ -216,21 +217,58 @@ class connect():
 		self.deleteObject(child, "index")
 	
 	# Cache Functions
+	def __getCache(self):
+		try:
+			collectionNames = self.db.collection_names()
+			index = {}
+			for obj in self.db["index"].find():
+				index[str(obj["_id"])] = obj["path"]
+		except Exception as e:
+			raise EnvironmentError(type(e).__name__)
+		else:
+			self.collectionNames = collectionNames
+			self.index = index
+	
+	def waitCache(self):
+		if self.cacheHang:
+			print("Waiting previous cache operation to be finished...")
+			while self.cacheHang:
+				pass
+
 	def cacheEnable(self):
+		self.waitCache()
 		if self.cache:
 			raise AssertionError("Cache is already enabled!")
 		print("Caching collections and index...")
-		self.cache = True
-		self.collectionNames = self.db.collection_names()
+		self.cacheHang = True
 
-		self.index = {}
-		for obj in self.db["index"].find():
-			self.index[str(obj["_id"])] = obj["path"]
+		try:
+			self.__getCache()
+		except Exception as e:
+			self.cacheHang = False
+			raise EnvironmentError("%s exception was caught while enabling cache!" % str(e))
+		self.cache = True
+		self.cacheHang = False
 	
 	def cacheDisable(self):
+		self.waitCache()
 		if not(self.cache):
 			raise AssertionError("Cache is already disabled!")
 		print("Disabling cache...")
 		self.cache = False
-		self.collectionNames = None
-		self.index = None 
+	
+	def cacheUpdate(self):
+		self.waitCache()
+		if not(self.cache):
+			raise AssertionError("Cache must first be enabled!")
+		print("Updating cache...")
+		self.cacheHang = True
+		self.cache = False
+		
+		try:
+			self.__getCache()
+		except Exception as e:
+			self.cacheHang = False
+			raise EnvironmentError("%s exception was caught while updating cache!" % str(e))
+		self.cache = True
+		self.cacheHang = False
