@@ -69,9 +69,11 @@ class connect():
 		if path == "/":
 			return "root"
 		if path != "index":
-			if self.cache:
-				return list(self.index.keys())[list(self.index.values()).index(path)]
-			return str(self.db["index"].find({"path": path}).limit(1)[0]["_id"])
+			if self.__objectExists({"path": path}, "index"):
+				if self.cache:
+					return list(self.index.keys())[list(self.index.values()).index(path)]
+				return str(self.db["index"].find({"path": path}).limit(1)[0]["_id"])
+			raise FileNotFoundError("Path %s doesn't exist!" % path)
 		return path
 
 	# Object Functions
@@ -241,6 +243,12 @@ class connect():
 			return str(self.db["index"].find(search).limit(1)[0]["_id"])
 		return None
 
+	def getChildren(self, obj_id, path):
+		collection = self.__getChild(obj_id, path)
+		if collection == None:
+			return []
+		return self.__readCollection(collection)
+
 	def deletePath(self, obj_id, path):
 		child = self.__getChild(obj_id, path)
 		if child == None:
@@ -261,14 +269,16 @@ class connect():
 		if not(self.hasPath(obj_id, path)):
 			return None
 
-		child = self.__getChild(obj_id, path)
-		objects = self.__readCollection(child)
+		objects = self.getChildren(obj_id, path)
 		if not objects:
 			return None
 
+		if not(path.endswith("/")):
+			path += "/"
+
 		for obj in objects:
 			id = str(obj["_id"])
-			ret[id] = self.getDescendants(id, child)
+			ret[id] = self.getDescendants(id, path + obj_id)
 		return ret	
 
 	# Cache Functions

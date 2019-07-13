@@ -11,6 +11,8 @@ class TreeViewer:
         builder.add_from_file(path)
         self.db = None
         self.column = None
+        self.listColumn = None
+        self.listmodel = None
 
         win = builder.get_object("AppWindow")
         win.connect("destroy", Gtk.main_quit)
@@ -19,7 +21,11 @@ class TreeViewer:
         self.conWin = builder.get_object("ConWindow")
         self.errorWin = builder.get_object("ErrorWindow")
 
+        self.objWin = builder.get_object("ObjWindow")
+        self.objWin.connect('delete-event', self.closeObjView)
+
         self.tree = builder.get_object("TreeView")
+        self.list = builder.get_object("ListView")
         self.status = builder.get_object("statusIndicator")
 
         self.refreshButton = builder.get_object("refreshButton")
@@ -36,6 +42,10 @@ class TreeViewer:
     
     def errorClose(self, button=None):
         self.errorWin.hide()
+    
+    def closeObjView(self, win, *data):
+        self.objWin.hide()
+        return True
 
     def conClose(self, button=None):
         self.conWin.hide()
@@ -85,16 +95,71 @@ class TreeViewer:
 
     def removeColumn(self):
         if self.column != None:
-            self.tree.remove_column(self.column)
+            self.model.clear()
+    
+    def listView(self, object, path, column):
+        if self.listColumn != None:
+            self.listmodel.clear()
+        self.listmodel = Gtk.ListStore(str, str)
+
+        path = self.createPath(path)
+        path = path.split("/")
+        obj_id = path[-1:]
+        obj_id = "/".join(obj_id)
+        path = path[:-1]
+        path = "/".join(path)
+        if path == "":
+            path = "/"
+        
+        try:
+            json = self.db.readObject(obj_id, path)
+        except:
+            print("Error while obtaining object")
+            self.objWin.hide()
+            self.setStatusRed()
+            return
+
+        for key in json:
+            val = json[key]
+            if not(isinstance(val, str)):
+                val = str(val)
+            self.listmodel.append([key, val])
+
+        self.list.set_model(self.listmodel)
+        if self.listColumn == None:
+            self.listColumn = Gtk.TreeViewColumn("Keys and Values")
+            key = Gtk.CellRendererText()
+            val = Gtk.CellRendererText()
+            self.listColumn.pack_start(key, True)
+            self.listColumn.pack_start(val, True)
+            self.listColumn.add_attribute(key, "text", 0)
+            self.listColumn.add_attribute(val, "text", 1)
+            self.list.append_column(self.listColumn)
+        self.objWin.show_all()
+
+    def createPath(self, path):
+        itertree = self.model.get_iter(path)
+        dbPath = self.model.get_value(itertree, 0)
+        while True:
+            path.up()
+            if str(path) != "":
+                itertree = self.model.get_iter(path)
+                dbPath = self.model.get_value(itertree, 0) + "/" + dbPath
+            else:
+                dbPath = "/" + dbPath
+                break
+        return dbPath
 
     def jsonToTree(self, json):
         self.model = Gtk.TreeStore(str)
         self.jsonToModel(json)
 
         self.tree.set_model(self.model)
-        cellRenderer = Gtk.CellRendererText()
-        self.column = Gtk.TreeViewColumn("Objects", cellRenderer, text=0)
-        self.tree.append_column(self.column)
+        if self.column == None:
+            cellRenderer = Gtk.CellRendererText()
+            self.column = Gtk.TreeViewColumn("Objects", cellRenderer, text=0)
+            self.tree.append_column(self.column)
+            self.tree.connect('row-activated', self.listView)
 
     def appendModel(self, value, parent=None):
         return self.model.append(parent,[value])
