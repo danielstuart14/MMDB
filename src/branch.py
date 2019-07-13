@@ -25,75 +25,96 @@ class connect():
 		self.cache = False
 		self.cacheHang = False
 
-		if not(self.collectionExists("root")) or not(self.collectionExists("index")):
+		if not(self.__collectionExists("root")) or not(self.__collectionExists("index")):
 			print("Creating root and index collections...")
-			self.createCollection("root")
-			self.createCollection("index")
-		
+			self.__createCollection("root")
+			self.__createCollection("index")
+
 		if cache:
 			self.cacheEnable()
 		print("Client ready!\n")
-	
+
 	# Collection Functions
-	def getCollections(self):
+	def __getCollections(self):
 		if self.cache:
 			return self.collectionNames
 		return self.db.collection_names()
-	
-	def collectionExists(self, collection):
-		if collection in self.getCollections():
+
+	def __collectionExists(self, collection):
+		if collection in self.__getCollections():
 			return True
 		return False
 
-	def createCollection(self, collection):
+	def __createCollection(self, collection):
 		self.db.create_collection(collection)
 		if self.cache:
 			self.collectionNames.append(collection)
-	
-	def readCollection(self, collection="root"):
+
+	def __readCollection(self, collection):
 		return list(self.db[collection].find({}))
-	
-	def deleteCollection(self, collection="root"):
+
+	def __deleteCollection(self, collection):
 		if collection in ["index","root"]:
 			raise PermissionError("%s can't be deleted!" % collection)
-		if not(self.collectionExists(collection)):
+		if not(self.__collectionExists(collection)):
 			raise FileNotFoundError("%s doesn't exist!" % collection)
-		if self.isAncestor(collection):
+		if self.__isAncestor(collection):
 			raise FileExistsError("%s has descendants!" % collection)
-		
+
 		self.db[collection].drop()
 		if self.cache:
 			self.collectionNames.remove(collection)
-	
+
+	def __pathToCollection(self, path):
+		if path == "/":
+			return "root"
+		if path != "index":
+			if self.cache:
+				return list(self.index.keys())[list(self.index.values()).index(path)]
+			return str(self.db["index"].find({"path": path}).limit(1)[0]["_id"])
+		return path
+
 	# Object Functions
-	def createObject(self, value, collection="root"):
+	def createObject(self, value, path):
+		collection = self.__pathToCollection(path)
+		return self.__createObject(value, collection)
+
+	def __createObject(self, value, collection):
 		if isinstance(value, str):
 			value = json.loads(value)
-		
+
 		insert = self.db[collection].insert_one(value)
 
 		if collection == "index" and self.cache:
 			self.index[str(insert.inserted_id)] = value["path"]
 		return str(insert.inserted_id)
 
-	def readObject(self, obj_id, collection="root"):
+	def readObject(self, obj_id, path):
+		collection = self.__pathToCollection(path)
+		return self.__readObject(obj_id, collection)
+
+	def __readObject(self, obj_id, collection):
 		id = {}
 		id["_id"] = ObjectId(obj_id)
-		if not(self.objectExists(id, collection)):
+		if not(self.__objectExists(id, collection)):
 			raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
-		
+
 		if collection == "index" and self.cache:
 			id["path"] = self.index[obj_id]
 			return id
 		return self.db[collection].find(id).limit(1)[0]
 
-	def updateObject(self, obj_id, value, collection="root"):
+	def updateObject(self, value, obj_id, path):
+		collection = self.__pathToCollection(path)
+		self.__updateObject(value, obj_id, collection)
+
+	def __updateObject(self, value, obj_id, collection):
 		if collection == "index":
 			raise PermissionError("Index can't have its objects updated!")
 
 		id = {}
 		id["_id"] = ObjectId(obj_id)
-		
+
 		changes = {}
 		if isinstance(value, str):
 			changes["$set"] = json.loads(value)
@@ -101,10 +122,14 @@ class connect():
 			changes["$set"] = value
 		self.db[collection].update(id,changes)
 
-	def deleteObject(self, obj_id, collection="root"):
-		if not(self.objectExists(obj_id, collection)):
+	def deleteObject(self, obj_id, path):
+		collection = self.__pathToCollection(path)
+		self.__deleteObject(obj_id, collection)
+
+	def __deleteObject(self, obj_id, collection):
+		if not(self.__objectExists(obj_id, collection)):
 			raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
-		if collection != "index" and self.hasChild(obj_id, collection):
+		if collection != "index" and self.hasPath(obj_id, collection):
 			raise FileExistsError(obj_id + " at " + collection + " has a child!")
 
 		id = {}
@@ -113,7 +138,11 @@ class connect():
 		if collection == "index" and self.cache:
 			del self.index[obj_id]
 
-	def objectExists(self, value, collection="root"):
+	def objectExists(self, value, path):
+		collection = self.__pathToCollection(path)
+		return self.__objectExists(value, collection)
+
+	def __objectExists(self, value, collection):
 		if isinstance(value, str):
 			if ObjectId.is_valid(value):
 				if collection == "index" and self.cache:
@@ -133,106 +162,110 @@ class connect():
 					return True
 				return False
 		return bool(self.db[collection].count_documents(value, limit = 1))
-	
-	def searchObject(self, value, collection="root"):
+
+	def searchObject(self, value, path):
+		collection = self.__pathToCollection(path)
+		return self.__searchObject(value, collection)
+
+	def __searchObject(self, value, collection):
 		if collection == "index":
 			raise PermissionError("Index isn't searchable!")
 		if isinstance(value, str):
 			value = json.loads(value)
 
-		if self.objectExists(value, collection):
+		if self.__objectExists(value, collection):
 			return self.db[collection].find(value).limit(1)[0]
 		return None
-	
+
 	# Index Functions
-	def getPath(self, collection="root"):
+	def getPath(self, obj_id, path):
+		if not(path.endswith("/")):
+			path += "/"
+		return (path + obj_id)
+
+	def __getPath(self, collection):
 		if collection == "root":
 			return "/"
 
-		parent = self.readObject(collection, "index")
+		parent = self.__readObject(collection, "index")
 		return parent["path"]
 
-	def hasChild(self, obj_id, collection="root"):
+	def hasPath(self, obj_id, path):
 		value = {}
-		path = self.getPath(collection)
 
 		if not(path.endswith("/")):
 			path += "/"
 		value["path"] = path + obj_id
-		return self.objectExists(value, "index")
-	
-	def isAncestor(self, obj_id, collection="root"):
-		if self.collectionExists(obj_id):
-			path = self.getPath(obj_id)
+		return self.__objectExists(value, "index")
+
+	def isAncestor(self, obj_id, path):
+		return self.__isAncestor(obj_id, path)
+
+	def __isAncestor(self, obj_id, path=None):
+		if path == None and self.__collectionExists(obj_id):
+			path = self.__getPath(obj_id)
 		else:
-			path = self.getChild(obj_id, collection)
+			path = self.__getChild(obj_id, path)
 			if path == None:
 				return False
-			path = self.getPath(path)
-		
+			path = self.__getPath(path)
+
 		path += "/"
 		path = path.replace("/", "\/")
 		value = {"path": {"$regex": path}}
-		return self.objectExists(value, "index")
+		return self.__objectExists(value, "index")
 
-	def createChild(self, obj_id, collection="root"):
+	def createPath(self, obj_id, path):
 		value = {}
-		path = self.getPath(collection)
 
 		if not(path.endswith("/")):
 			path += "/"
 		value["path"] = path + obj_id
 
-		if self.objectExists(value, "index"):
-			raise FileExistsError("%s already has a child!" % (path + obj_id))
-		id = self.createObject(value, "index")
-		self.createCollection(str(id))
-		return str(id)
-	
-	def getParent(self, collection="root"):
-		path = self.getPath(collection)
-		path = path.split("/")
-		return path[len(path) - 1]
+		if self.__objectExists(value, "index"):
+			raise FileExistsError("%s already has a child!" % value["path"])
+		id = self.__createObject(value, "index")
+		self.__createCollection(str(id))
+		return value["path"]
 
-	def getChild(self, obj_id, collection="root"):		
-		path = self.getPath(collection)
+	def __getChild(self, obj_id, path):		
 		if not(path.endswith("/")):
 			path += "/"
 		path += obj_id
 
 		search = {}
 		search["path"] = path
-		if self.objectExists(search, "index"):
+		if self.__objectExists(search, "index"):
 			if self.cache:
 				return list(self.index.keys())[list(self.index.values()).index(path)]
 			return str(self.db["index"].find(search).limit(1)[0]["_id"])
 		return None
 
-	def deleteChild(self, obj_id, collection="root"):
-		child = self.getChild(obj_id, collection)
+	def deletePath(self, obj_id, path):
+		child = self.__getChild(obj_id, path)
 		if child == None:
-			raise FileNotFoundError(obj_id + " at " + collection + " doesn't have a child!")
-		if self.isAncestor(child):
-			raise FileExistsError(obj_id + " at " + collection + " has descendants!")
-		self.deleteCollection(child)
-		self.deleteObject(child, "index")
+			raise FileNotFoundError(obj_id + " at " + path + " doesn't have a child!")
+		if self.__isAncestor(child):
+			raise FileExistsError(obj_id + " at " + path + " has descendants!")
+		self.__deleteCollection(child)
+		self.__deleteObject(child, "index")
 
-	def getDescendants(self, obj_id=None, collection="root"):
+	def getDescendants(self, obj_id=None, path=None):
 		ret = {}
-		if obj_id == None and collection == "root":
-			for obj in self.readCollection("root"):
+		if obj_id == None and path == None:
+			for obj in self.__readCollection("root"):
 				id = str(obj["_id"])
-				ret[id] = self.getDescendants(id, "root")
+				ret[id] = self.getDescendants(id, "/")
 			return ret
 
-		if not(self.hasChild(obj_id, collection)):
+		if not(self.hasPath(obj_id, path)):
 			return None
-		
-		child = self.getChild(obj_id, collection)
-		objects = self.readCollection(child)
+
+		child = self.__getChild(obj_id, path)
+		objects = self.__readCollection(child)
 		if not objects:
 			return None
-		
+
 		for obj in objects:
 			id = str(obj["_id"])
 			ret[id] = self.getDescendants(id, child)
@@ -250,7 +283,7 @@ class connect():
 		else:
 			self.collectionNames = collectionNames
 			self.index = index
-	
+
 	def waitCache(self):
 		if self.cacheHang:
 			print("Waiting previous cache operation to be finished...")
@@ -271,14 +304,14 @@ class connect():
 			raise EnvironmentError("%s exception was caught while enabling cache!" % str(e))
 		self.cache = True
 		self.cacheHang = False
-	
+
 	def cacheDisable(self):
 		self.waitCache()
 		if not(self.cache):
 			raise AssertionError("Cache is already disabled!")
 		print("Disabling cache...")
 		self.cache = False
-	
+
 	def cacheUpdate(self):
 		self.waitCache()
 		if not(self.cache):
@@ -286,7 +319,7 @@ class connect():
 		print("Updating cache...")
 		self.cacheHang = True
 		self.cache = False
-		
+
 		try:
 			self.__getCache()
 		except Exception as e:
