@@ -10,8 +10,6 @@ class TreeViewer:
         path = os.path.join(os.path.dirname(__file__), "viewer.xml")
         builder.add_from_file(path)
         self.db = None
-        self.server = ""
-        self.database = ""
         self.column = None
 
         win = builder.get_object("AppWindow")
@@ -41,13 +39,13 @@ class TreeViewer:
 
     def conClose(self, button=None):
         self.conWin.hide()
-    
+
     def conApply(self, button):
         server = self.urlBox.get_text()
         database = self.dbBox.get_text()
         self.connect(server, database)
         self.conClose()
-    
+
     def connect(self, server, database):
         print("Trying to connect...")
         try:
@@ -58,7 +56,7 @@ class TreeViewer:
         else:
             print("Connected")
             self.refresh()
-    
+
     def refresh(self, button=None):
         try:
             tree = self.db.getDescendants()
@@ -70,21 +68,21 @@ class TreeViewer:
         else:
             print("List refreshed")
             self.setStatusGreen()
-    
+
     def setStatusGreen(self):
         self.status.set_from_stock("gtk-yes", -1)
         self.status.set_tooltip_text("Connected")
         self.refreshButton.set_sensitive(True)
-    
+
     def setStatusRed(self):
         self.status.set_from_stock("gtk-no", -1)
         self.status.set_tooltip_text("Not connected")
         self.refreshButton.set_sensitive(False)
         self.errorWin.show_all()
-    
+
     def openConnect(self, button):
         self.conWin.show_all()
-    
+
     def removeColumn(self):
         if self.column != None:
             self.tree.remove_column(self.column)
@@ -97,10 +95,10 @@ class TreeViewer:
         cellRenderer = Gtk.CellRendererText()
         self.column = Gtk.TreeViewColumn("Objects", cellRenderer, text=0)
         self.tree.append_column(self.column)
-    
+
     def appendModel(self, value, parent=None):
         return self.model.append(parent,[value])
-    
+
     def jsonToModel(self, json, parent=None):
         for i in list(json):
             newIter = self.appendModel(i, parent)

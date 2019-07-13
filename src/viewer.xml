@@ -191,8 +191,8 @@
           <object class="GtkGrid">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="halign">start</property>
-            <property name="valign">start</property>
+            <property name="halign">center</property>
+            <property name="valign">center</property>
             <property name="row_spacing">4</property>
             <property name="column_spacing">4</property>
             <child>
@@ -235,52 +235,6 @@
               <packing>
                 <property name="left_attach">1</property>
                 <property name="top_attach">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Login:</property>
-              </object>
-              <packing>
-                <property name="left_attach">0</property>
-                <property name="top_attach">3</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="margin_top">9</property>
-                <property name="label" translatable="yes">Tag:</property>
-              </object>
-              <packing>
-                <property name="left_attach">0</property>
-                <property name="top_attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkEntry" id="tag">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="text" translatable="yes">_id</property>
-              </object>
-              <packing>
-                <property name="left_attach">1</property>
-                <property name="top_attach">2</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkEntry" id="passbox">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="visibility">False</property>
-                <property name="invisible_char">*</property>
-              </object>
-              <packing>
-                <property name="left_attach">1</property>
-                <property name="top_attach">3</property>
               </packing>
             </child>
           </object>
