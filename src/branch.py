@@ -17,6 +17,7 @@ class connect():
 	def __init__(self, server, name, cache=False):
 		print("Initializing client...")
 		client = pymongo.MongoClient(server)
+		client.admin.command('ismaster')
 
 		if not(name in client.database_names()):
 			print("Creating %s database..." % name)
@@ -215,7 +216,28 @@ class connect():
 			raise FileExistsError(obj_id + " at " + collection + " has descendants!")
 		self.deleteCollection(child)
 		self.deleteObject(child, "index")
-	
+
+	def getDescendants(self, obj_id=None, collection="root"):
+		ret = {}
+		if obj_id == None and collection == "root":
+			for obj in self.readCollection("root"):
+				id = str(obj["_id"])
+				ret[id] = self.getDescendants(id, "root")
+			return ret
+
+		if not(self.hasChild(obj_id, collection)):
+			return None
+		
+		child = self.getChild(obj_id, collection)
+		objects = self.readCollection(child)
+		if not objects:
+			return None
+		
+		for obj in objects:
+			id = str(obj["_id"])
+			ret[id] = self.getDescendants(id, child)
+		return ret	
+
 	# Cache Functions
 	def __getCache(self):
 		try:

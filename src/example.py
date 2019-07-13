@@ -6,7 +6,6 @@ Example File
 Author: Daniel P. Stuart
 """
 import branch
-import json
 import time
 
 start = time.time()
