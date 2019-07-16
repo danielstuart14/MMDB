@@ -13,6 +13,8 @@ class TreeViewer:
         self.column = None
         self.listColumn = None
         self.listmodel = None
+        self.listPathColumn = None
+        self.listPathModel = None
 
         win = builder.get_object("AppWindow")
         win.connect("destroy", Gtk.main_quit)
@@ -23,9 +25,13 @@ class TreeViewer:
 
         self.objWin = builder.get_object("ObjWindow")
         self.objWin.connect('delete-event', self.closeObjView)
+        
+        self.pathWin = builder.get_object("PathWindow")
+        self.pathWin.connect('delete-event', self.closePathView)
 
         self.tree = builder.get_object("TreeView")
         self.list = builder.get_object("ListView")
+        self.pathList = builder.get_object("ListViewPath")
         self.status = builder.get_object("statusIndicator")
 
         self.refreshButton = builder.get_object("refreshButton")
@@ -45,6 +51,10 @@ class TreeViewer:
     
     def closeObjView(self, win, *data):
         self.objWin.hide()
+        return True
+    
+    def closePathView(self, win, *data):
+        self.pathWin.hide()
         return True
 
     def conClose(self, button=None):
@@ -69,7 +79,7 @@ class TreeViewer:
 
     def refresh(self, button=None):
         try:
-            tree = self.db.getDescendants()
+            tree = self.db.getStructure()
             self.removeColumn()
             self.jsonToTree(tree)
         except:
@@ -97,22 +107,64 @@ class TreeViewer:
         if self.column != None:
             self.model.clear()
     
-    def listView(self, object, path, column):
+    def listViewObj(self, object, path, column):
+        if self.listPathColumn != None:
+            self.listPathModel.clear()
+        self.listPathModel = Gtk.ListStore(str)
+        itertree = self.model.get_iter(path)
+        
+        if self.model.get_value(itertree, 0) == "/":
+            obj_id = ""
+            path = "/"
+        else:
+            path = self.createPath(path)
+            path = path.split("/")
+            obj_id = path[-1:]
+            obj_id = "/".join(obj_id)
+            path = path[:-1]
+            path = "/".join(path)
+            if path == "":
+                path = "/"
+        
+        try:
+            if obj_id != "":
+                children = list(self.db.getChildren(obj_id, path))
+            else:
+                children = list(self.db.getObjects(path))
+        except:
+            print("Error while obtaining objects")
+            self.pathWin.hide()
+            self.setStatusRed()
+            return
+        
+        if not(path.endswith("/")):
+            path += "/"
+        self.path = path + obj_id
+        for obj in children:
+            obj_id = str(obj["_id"])
+            self.listPathModel.append([obj_id])
+
+        self.pathList.set_model(self.listPathModel)
+        if self.listPathColumn == None:
+            render = Gtk.CellRendererText()
+            self.listPathColumn = Gtk.TreeViewColumn("Object IDs", render, text=0)
+            self.pathList.append_column(self.listPathColumn)
+            self.pathList.connect('row-activated', self.listView)
+        self.pathWin.show_all()
+        
+    
+    def listView(self, obj, path, column):
         if self.listColumn != None:
             self.listmodel.clear()
         self.listmodel = Gtk.ListStore(str, str)
-
-        path = self.createPath(path)
-        path = path.split("/")
-        obj_id = path[-1:]
-        obj_id = "/".join(obj_id)
-        path = path[:-1]
-        path = "/".join(path)
-        if path == "":
-            path = "/"
+        
+        iterpath = self.listPathModel.get_iter(path)
+        obj_id = self.listPathModel.get_value(iterpath, 0)
+        print(obj_id)
+        print(self.path)
         
         try:
-            json = self.db.readObject(obj_id, path)
+            json = self.db.readObject(obj_id, self.path)
         except:
             print("Error while obtaining object")
             self.objWin.hide()
@@ -144,22 +196,24 @@ class TreeViewer:
             path.up()
             if str(path) != "":
                 itertree = self.model.get_iter(path)
-                dbPath = self.model.get_value(itertree, 0) + "/" + dbPath
-            else:
-                dbPath = "/" + dbPath
-                break
+                upperPath = self.model.get_value(itertree, 0)
+                if upperPath == "/":
+                    dbPath = "/" + dbPath
+                    break
+                dbPath = upperPath + "/" + dbPath
         return dbPath
 
     def jsonToTree(self, json):
         self.model = Gtk.TreeStore(str)
-        self.jsonToModel(json)
+        root = self.appendModel("/")
+        self.jsonToModel(json, root)
 
         self.tree.set_model(self.model)
         if self.column == None:
             cellRenderer = Gtk.CellRendererText()
-            self.column = Gtk.TreeViewColumn("Objects", cellRenderer, text=0)
+            self.column = Gtk.TreeViewColumn("Paths", cellRenderer, text=0)
             self.tree.append_column(self.column)
-            self.tree.connect('row-activated', self.listView)
+            self.tree.connect('row-activated', self.listViewObj)
 
     def appendModel(self, value, parent=None):
         return self.model.append(parent,[value])
@@ -167,7 +221,7 @@ class TreeViewer:
     def jsonToModel(self, json, parent=None):
         for i in list(json):
             newIter = self.appendModel(i, parent)
-            if isinstance(json[i], dict):
+            if json[i]:
                     self.jsonToModel(json[i], newIter)
 
 app = TreeViewer()

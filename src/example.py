@@ -53,7 +53,7 @@ if not(db.hasPath(obj_2, path_1)):
     print(obj_2 + " doesn't have a path!")
 
 # 13 - Prints database structure
-print(json.dumps(db.getDescendants(), sort_keys=True, indent=4))
+print(json.dumps(db.getStructure(), sort_keys=True, indent=4))
 
 # 14 - Print time needed to execute all operations
 finish = time.time()

@@ -129,7 +129,7 @@
   <object class="GtkDialog" id="ConWindow">
     <property name="width_request">300</property>
     <property name="can_focus">False</property>
-    <property name="title" translatable="yes">Connect</property>
+    <property name="title" translatable="yes">Connection</property>
     <property name="resizable">False</property>
     <property name="destroy_with_parent">True</property>
     <property name="type_hint">dialog</property>
@@ -298,10 +298,12 @@
   </object>
   <object class="GtkApplicationWindow" id="ObjWindow">
     <property name="can_focus">False</property>
-    <property name="title" translatable="yes">Object Viewer</property>
+    <property name="title" translatable="yes">Object Values</property>
+    <property name="window_position">center-on-parent</property>
     <property name="default_width">600</property>
     <property name="default_height">400</property>
     <property name="destroy_with_parent">True</property>
+    <property name="gravity">north-east</property>
     <property name="transient_for">AppWindow</property>
     <child>
       <placeholder/>
@@ -317,6 +319,37 @@
         <property name="shadow_type">in</property>
         <child>
           <object class="GtkTreeView" id="ListView">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="enable_grid_lines">both</property>
+            <child internal-child="selection">
+              <object class="GtkTreeSelection"/>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkApplicationWindow" id="PathWindow">
+    <property name="can_focus">False</property>
+    <property name="title" translatable="yes">Path Objects</property>
+    <property name="window_position">center-on-parent</property>
+    <property name="default_width">400</property>
+    <property name="default_height">600</property>
+    <property name="destroy_with_parent">True</property>
+    <property name="transient_for">AppWindow</property>
+    <child>
+      <placeholder/>
+    </child>
+    <child>
+      <object class="GtkScrolledWindow">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="margin_top">9</property>
+        <property name="margin_bottom">9</property>
+        <property name="shadow_type">in</property>
+        <child>
+          <object class="GtkTreeView" id="ListViewPath">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="enable_grid_lines">both</property>

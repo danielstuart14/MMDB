@@ -11,6 +11,7 @@ import pymongo
 import json
 from bson.objectid import ObjectId
 import re
+import itertools
 
 # MongoDB Connection
 class connect():
@@ -139,6 +140,15 @@ class connect():
 		self.db[collection].remove(id, True)
 		if collection == "index" and self.cache:
 			del self.index[obj_id]
+	
+	def getObjects(self, path):
+		if path == "/":
+			collection = "root"
+		else:
+			collection = self.__getChild(path)
+			if collection == None:
+				return []
+		return self.__readCollection(collection)
 
 	def objectExists(self, value, path):
 		collection = self.__pathToCollection(path)
@@ -230,10 +240,13 @@ class connect():
 		self.__createCollection(str(id))
 		return value["path"]
 
-	def __getChild(self, obj_id, path):		
-		if not(path.endswith("/")):
-			path += "/"
-		path += obj_id
+	def __getChild(self, obj_id, path=""):
+		if path == "":
+			path = obj_id
+		else:		
+			if not(path.endswith("/")):
+				path += "/"
+			path += obj_id
 
 		search = {}
 		search["path"] = path
@@ -258,28 +271,45 @@ class connect():
 		self.__deleteCollection(child)
 		self.__deleteObject(child, "index")
 
-	def getDescendants(self, obj_id=None, path=None):
-		ret = {}
-		if obj_id == None and path == None:
-			for obj in self.__readCollection("root"):
-				id = str(obj["_id"])
-				ret[id] = self.getDescendants(id, "/")
-			return ret
-
-		if not(self.hasPath(obj_id, path)):
-			return None
-
-		objects = self.getChildren(obj_id, path)
-		if not objects:
-			return None
-
+	def getStructure(self, path="/"):
 		if not(path.endswith("/")):
 			path += "/"
 
-		for obj in objects:
-			id = str(obj["_id"])
-			ret[id] = self.getDescendants(id, path + obj_id)
-		return ret	
+		regex = path.replace("/", "\/")
+		regex =  regex + ".*"
+		if self.cache:
+			objects = []
+			regex = re.compile(regex)
+			for val in self.index.values():
+				if regex.match(val):
+					objects.append(val)
+		else:
+			value = {"path": {"$regex": regex}}
+			objects = self.db["index"].distinct("path", value)
+
+		if objects:
+			objects.sort(key=len)
+			objects = [list(obj) for (i, obj) in itertools.groupby(objects, key=len)]
+			
+			def createStructure(objects, regex=""):
+				if regex != "":
+					regex = re.compile(regex)
+					objects[0] = list(filter(regex.match, objects[0]))
+				if not(objects[0]):
+					return None
+			
+				ret = {}
+				separator = len(objects[0][0]) - 24
+
+				if len(objects) == 1:
+					for obj in objects[0]:
+						ret[obj[separator:]] = None
+					return ret
+				for obj in objects[0]:
+					ret[obj[separator:]] = createStructure(objects[1:], obj)
+				return ret
+			return createStructure(objects)
+		return {}
 
 	# Cache Functions
 	def __getCache(self):
