@@ -70,10 +70,14 @@ class connect():
 		if path == "/":
 			return "root"
 		if path != "index":
-			if self.__objectExists({"path": path}, "index"):
-				if self.cache:
+			if self.cache:
+				if path in self.index.values():
 					return list(self.index.keys())[list(self.index.values()).index(path)]
-				return str(self.db["index"].find({"path": path}).limit(1)[0]["_id"])
+				raise FileNotFoundError("Path %s doesn't exist!" % path)
+
+			ret = list(self.db["index"].find({"path": path}).limit(1))
+			if len(ret) == 1:
+				return str(ret[0]["_id"])
 			raise FileNotFoundError("Path %s doesn't exist!" % path)
 		return path
 
@@ -99,13 +103,17 @@ class connect():
 	def __readObject(self, obj_id, collection):
 		id = {}
 		id["_id"] = ObjectId(obj_id)
-		if not(self.__objectExists(id, collection)):
-			raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
 
 		if collection == "index" and self.cache:
-			id["path"] = self.index[obj_id]
-			return id
-		return self.db[collection].find(id).limit(1)[0]
+			if obj_id in self.index:
+				id["path"] = self.index[obj_id]
+				return id
+			raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
+
+		ret = list(self.db[collection].find(id).limit(1))
+		if len(ret) == 1:
+			return ret[0]
+		raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
 
 	def updateObject(self, value, obj_id, path):
 		collection = self.__pathToCollection(path)
@@ -133,7 +141,7 @@ class connect():
 		if not(self.__objectExists(obj_id, collection)):
 			raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
 		if collection != "index" and self.hasPath(obj_id, collection):
-			raise FileExistsError(obj_id + " at " + collection + " has a child!")
+			raise FileExistsError(obj_id + " at " + collection + " has a path!")
 
 		id = {}
 		id["_id"] = ObjectId(obj_id)
@@ -185,8 +193,9 @@ class connect():
 		if isinstance(value, str):
 			value = json.loads(value)
 
-		if self.__objectExists(value, collection):
-			return self.db[collection].find(value).limit(1)[0]
+		ret = list(self.db[collection].find(value).limit(1))
+		if len(ret) == 1:
+			return ret[0]
 		return None
 
 	# Index Functions
@@ -248,12 +257,16 @@ class connect():
 				path += "/"
 			path += obj_id
 
+		if self.cache:
+			if path in self.index.values():
+				return list(self.index.keys())[list(self.index.values()).index(path)]
+			return None
+
 		search = {}
 		search["path"] = path
-		if self.__objectExists(search, "index"):
-			if self.cache:
-				return list(self.index.keys())[list(self.index.values()).index(path)]
-			return str(self.db["index"].find(search).limit(1)[0]["_id"])
+		ret = list(self.db["index"].find(search).limit(1))
+		if len(ret) == 1:
+			return str(ret[0]["_id"])
 		return None
 
 	def getChildren(self, obj_id, path):
