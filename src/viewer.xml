@@ -5,8 +5,11 @@
   <object class="GtkApplicationWindow" id="AppWindow">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">BranchDB Viewer</property>
+    <property name="window_position">center</property>
     <property name="default_width">400</property>
     <property name="default_height">600</property>
+    <property name="gravity">center</property>
+    <signal name="destroy" handler="gtk_main_quit" swapped="no"/>
     <child>
       <placeholder/>
     </child>
@@ -131,9 +134,12 @@
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Connection</property>
     <property name="resizable">False</property>
+    <property name="modal">True</property>
+    <property name="window_position">center-on-parent</property>
     <property name="destroy_with_parent">True</property>
     <property name="type_hint">dialog</property>
     <property name="deletable">False</property>
+    <property name="gravity">center</property>
     <property name="transient_for">AppWindow</property>
     <child>
       <placeholder/>
@@ -248,77 +254,27 @@
       </object>
     </child>
   </object>
-  <object class="GtkMessageDialog" id="ErrorWindow">
-    <property name="can_focus">False</property>
-    <property name="resizable">False</property>
-    <property name="destroy_with_parent">True</property>
-    <property name="type_hint">dialog</property>
-    <property name="deletable">False</property>
-    <property name="transient_for">AppWindow</property>
-    <property name="message_type">error</property>
-    <property name="text" translatable="yes">&lt;b&gt;Error with database connection!&lt;/b&gt;</property>
-    <property name="use_markup">True</property>
-    <property name="secondary_text" translatable="yes">An error has occurred...</property>
-    <child internal-child="vbox">
-      <object class="GtkBox">
-        <property name="can_focus">False</property>
-        <property name="margin_left">9</property>
-        <property name="margin_right">9</property>
-        <property name="margin_top">9</property>
-        <property name="margin_bottom">9</property>
-        <property name="orientation">vertical</property>
-        <child internal-child="action_area">
-          <object class="GtkButtonBox">
-            <property name="can_focus">False</property>
-            <property name="homogeneous">True</property>
-            <property name="layout_style">end</property>
-            <child>
-              <object class="GtkButton" id="ErrorClose">
-                <property name="label">gtk-close</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="use_stock">True</property>
-              </object>
-              <packing>
-                <property name="expand">True</property>
-                <property name="fill">True</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">False</property>
-            <property name="position">-1</property>
-          </packing>
-        </child>
-      </object>
-    </child>
-  </object>
   <object class="GtkApplicationWindow" id="ObjWindow">
     <property name="can_focus">False</property>
-    <property name="title" translatable="yes">Object Values</property>
-    <property name="window_position">center-on-parent</property>
-    <property name="default_width">600</property>
-    <property name="default_height">400</property>
+    <property name="title" translatable="yes">Path Objects</property>
+    <property name="window_position">center</property>
+    <property name="default_width">400</property>
+    <property name="default_height">600</property>
     <property name="destroy_with_parent">True</property>
-    <property name="gravity">north-east</property>
+    <property name="gravity">center</property>
     <property name="transient_for">AppWindow</property>
-    <child>
+    <child type="titlebar">
       <placeholder/>
     </child>
     <child>
       <object class="GtkScrolledWindow">
         <property name="visible">True</property>
         <property name="can_focus">True</property>
-        <property name="margin_left">9</property>
-        <property name="margin_right">9</property>
         <property name="margin_top">9</property>
         <property name="margin_bottom">9</property>
         <property name="shadow_type">in</property>
         <child>
-          <object class="GtkTreeView" id="ListView">
+          <object class="GtkTreeView" id="ObjView">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="enable_grid_lines">both</property>
@@ -330,13 +286,14 @@
       </object>
     </child>
   </object>
-  <object class="GtkApplicationWindow" id="PathWindow">
+  <object class="GtkApplicationWindow" id="ValWindow">
     <property name="can_focus">False</property>
-    <property name="title" translatable="yes">Path Objects</property>
-    <property name="window_position">center-on-parent</property>
+    <property name="title" translatable="yes">Object Values</property>
+    <property name="window_position">center</property>
     <property name="default_width">400</property>
     <property name="default_height">600</property>
     <property name="destroy_with_parent">True</property>
+    <property name="gravity">center</property>
     <property name="transient_for">AppWindow</property>
     <child>
       <placeholder/>
@@ -345,11 +302,13 @@
       <object class="GtkScrolledWindow">
         <property name="visible">True</property>
         <property name="can_focus">True</property>
+        <property name="margin_left">9</property>
+        <property name="margin_right">9</property>
         <property name="margin_top">9</property>
         <property name="margin_bottom">9</property>
         <property name="shadow_type">in</property>
         <child>
-          <object class="GtkTreeView" id="ListViewPath">
+          <object class="GtkTreeView" id="ValView">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="enable_grid_lines">both</property>
