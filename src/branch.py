@@ -23,22 +23,16 @@ class connect():
 		if not(name in client.database_names()):
 			print("Creating %s database..." % name)
 		self.db = client[name]
-		self.cache = False
-		self.cacheHang = False
 
 		if not(self.__collectionExists("root")) or not(self.__collectionExists("index")):
 			print("Creating root and index collections...")
 			self.__createCollection("root")
 			self.__createCollection("index")
 
-		if cache:
-			self.cacheEnable()
 		print("Client ready!\n")
 
 	# Collection Functions
 	def __getCollections(self):
-		if self.cache:
-			return self.collectionNames
 		return self.db.collection_names()
 
 	def __collectionExists(self, collection):
@@ -48,8 +42,6 @@ class connect():
 
 	def __createCollection(self, collection):
 		self.db.create_collection(collection)
-		if self.cache:
-			self.collectionNames.append(collection)
 
 	def __readCollection(self, collection):
 		return list(self.db[collection].find({}))
@@ -63,18 +55,11 @@ class connect():
 			raise FileExistsError("%s has descendants!" % collection)
 
 		self.db[collection].drop()
-		if self.cache:
-			self.collectionNames.remove(collection)
 
 	def __pathToCollection(self, path):
 		if path == "/":
 			return "root"
 		if path != "index":
-			if self.cache:
-				if path in self.index.values():
-					return list(self.index.keys())[list(self.index.values()).index(path)]
-				raise FileNotFoundError("Path %s doesn't exist!" % path)
-
 			ret = list(self.db["index"].find({"path": path}).limit(1))
 			if len(ret) == 1:
 				return str(ret[0]["_id"])
@@ -92,8 +77,6 @@ class connect():
 
 		insert = self.db[collection].insert_one(value)
 
-		if collection == "index" and self.cache:
-			self.index[str(insert.inserted_id)] = value["path"]
 		return str(insert.inserted_id)
 
 	def readObject(self, obj_id, path):
@@ -103,12 +86,6 @@ class connect():
 	def __readObject(self, obj_id, collection):
 		id = {}
 		id["_id"] = ObjectId(obj_id)
-
-		if collection == "index" and self.cache:
-			if obj_id in self.index:
-				id["path"] = self.index[obj_id]
-				return id
-			raise FileNotFoundError(obj_id + " at " + collection + " doesn't exist!")
 
 		ret = list(self.db[collection].find(id).limit(1))
 		if len(ret) == 1:
@@ -146,8 +123,6 @@ class connect():
 		id = {}
 		id["_id"] = ObjectId(obj_id)
 		self.db[collection].remove(id, True)
-		if collection == "index" and self.cache:
-			del self.index[obj_id]
 	
 	def getObjects(self, path):
 		if path == "/":
@@ -165,22 +140,10 @@ class connect():
 	def __objectExists(self, value, collection):
 		if isinstance(value, str):
 			if ObjectId.is_valid(value):
-				if collection == "index" and self.cache:
-					return value in self.index
 				value = {"_id": ObjectId(value)}
 			else:
 				value = json.loads(value)
 
-		if collection == "index" and self.cache:
-			if "_id" in value:
-				return str(value["_id"]) in self.index
-			if isinstance(value["path"], str):
-				return value["path"] in self.index.values()
-			if "$regex" in value["path"]:
-				regex = re.compile(value["path"]["$regex"])
-				if any(regex.match(path) for path in self.index.values()):
-					return True
-				return False
 		return bool(self.db[collection].count_documents(value, limit = 1))
 
 	def searchObject(self, value, path):
@@ -257,11 +220,6 @@ class connect():
 				path += "/"
 			path += obj_id
 
-		if self.cache:
-			if path in self.index.values():
-				return list(self.index.keys())[list(self.index.values()).index(path)]
-			return None
-
 		search = {}
 		search["path"] = path
 		ret = list(self.db["index"].find(search).limit(1))
@@ -290,15 +248,8 @@ class connect():
 
 		regex = path.replace("/", "\/")
 		regex =  regex + ".*"
-		if self.cache:
-			objects = []
-			regex = re.compile(regex)
-			for val in self.index.values():
-				if regex.match(val):
-					objects.append(val)
-		else:
-			value = {"path": {"$regex": regex}}
-			objects = self.db["index"].distinct("path", value)
+		value = {"path": {"$regex": regex}}
+		objects = self.db["index"].distinct("path", value)
 
 		if objects:
 			objects.sort(key=len)
@@ -323,60 +274,3 @@ class connect():
 				return ret
 			return createStructure(objects)
 		return {}
-
-	# Cache Functions
-	def __getCache(self):
-		try:
-			collectionNames = self.db.collection_names()
-			index = {}
-			for obj in self.db["index"].find():
-				index[str(obj["_id"])] = obj["path"]
-		except Exception as e:
-			raise EnvironmentError(type(e).__name__)
-		else:
-			self.collectionNames = collectionNames
-			self.index = index
-
-	def waitCache(self):
-		if self.cacheHang:
-			print("Waiting previous cache operation to be finished...")
-			while self.cacheHang:
-				pass
-
-	def cacheEnable(self):
-		self.waitCache()
-		if self.cache:
-			raise AssertionError("Cache is already enabled!")
-		print("Caching collections and index...")
-		self.cacheHang = True
-
-		try:
-			self.__getCache()
-		except Exception as e:
-			self.cacheHang = False
-			raise EnvironmentError("%s exception was caught while enabling cache!" % str(e))
-		self.cache = True
-		self.cacheHang = False
-
-	def cacheDisable(self):
-		self.waitCache()
-		if not(self.cache):
-			raise AssertionError("Cache is already disabled!")
-		print("Disabling cache...")
-		self.cache = False
-
-	def cacheUpdate(self):
-		self.waitCache()
-		if not(self.cache):
-			raise AssertionError("Cache must first be enabled!")
-		print("Updating cache...")
-		self.cacheHang = True
-		self.cache = False
-
-		try:
-			self.__getCache()
-		except Exception as e:
-			self.cacheHang = False
-			raise EnvironmentError("%s exception was caught while updating cache!" % str(e))
-		self.cache = True
-		self.cacheHang = False
