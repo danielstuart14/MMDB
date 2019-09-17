@@ -13,9 +13,11 @@ class TreeViewer:
         self.treeColumn = None
         self.ValColumn = None
         self.ObjColumn = None
+        self.ObjValColumn = None
         self.TreeModel = None
         self.ValModel = None
         self.ObjModel = None
+        self.ObjValModel = None
 
         self.appWin = builder.get_object("AppWindow")
         self.appWin.connect("destroy", Gtk.main_quit)
@@ -35,6 +37,7 @@ class TreeViewer:
         self.tree = builder.get_object("TreeView")
         self.valList = builder.get_object("ValView")
         self.objList = builder.get_object("ObjView")
+        self.objValList = builder.get_object("ObjValView")
         self.status = builder.get_object("statusIndicator")
 
         self.refreshButton = builder.get_object("refreshButton")
@@ -67,7 +70,7 @@ class TreeViewer:
     def connect(self, server, database):
         print("Trying to connect...")
         try:
-            self.db = branch.connect(server, database, True)
+            self.db = branch.connect(server, database)
         except Exception as e:
             self.conClose()
             self.setStatusRed("Error while connecting", str(e))
@@ -145,8 +148,7 @@ class TreeViewer:
             path += "/"
         self.path = path + obj_id
         for obj in children:
-            obj_id = str(obj["_id"])
-            self.ObjModel.append([obj_id])
+            self.ObjModel.append([str(obj["_id"])])
 
         self.objList.set_model(self.ObjModel)
         if self.ObjColumn == None:
@@ -154,6 +156,32 @@ class TreeViewer:
             self.ObjColumn = Gtk.TreeViewColumn("Object IDs", render, text=0)
             self.objList.append_column(self.ObjColumn)
             self.objList.connect("row-activated", self.valView)
+        
+        if self.ObjValColumn != None:
+            self.ObjValModel.clear()
+        self.ObjValModel = Gtk.ListStore(str)
+        
+        if (obj_id == ""):
+            return self.objWin.show_all()
+
+        try:
+            json = self.db.readObject(obj_id, path)
+        except Exception as e:
+            self.valWin.hide()
+            self.setStatusRed("Error while obtaining object", str(e))
+            return
+
+        for key in json:
+            val = json[key]
+            if not(isinstance(val, str)):
+                val = str(val)
+            self.ObjValModel.append([key + ": " + val])
+
+        self.objValList.set_model(self.ObjValModel)
+        if self.ObjValColumn == None:
+            render = Gtk.CellRendererText()
+            self.ObjValColumn = Gtk.TreeViewColumn("Values", render, text=0)
+            self.objValList.append_column(self.ObjValColumn)
         self.objWin.show_all()
     
     def valView(self, obj, path, column):
