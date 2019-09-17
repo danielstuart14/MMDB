@@ -10,10 +10,10 @@ import time
 import json
 
 start = time.time()
-server = "" # Insert here your server URL
+server = "127.0.0.1" # Insert here your server URL
 name = "test" # Database name (It'll be created by BranchDB)
 
-db = branch.connect(server, name, True) # Starts connection with cache enabled
+db = branch.connect(server, name) # Starts connection
 
 # 1 - Creates an object/document
 obj_1 = db.createObject('{"Name": "Test 1"}', "/")

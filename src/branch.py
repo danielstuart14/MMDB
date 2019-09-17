@@ -15,7 +15,7 @@ import itertools
 
 # MongoDB Connection
 class connect():
-	def __init__(self, server, name, cache=False):
+	def __init__(self, server, name):
 		print("Initializing client...")
 		client = pymongo.MongoClient(server)
 		client.admin.command('ismaster')
