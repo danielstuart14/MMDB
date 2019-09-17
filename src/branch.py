@@ -51,7 +51,7 @@ class connect():
 			raise PermissionError("%s can't be deleted!" % collection)
 		if not(self.__collectionExists(collection)):
 			raise FileNotFoundError("%s doesn't exist!" % collection)
-		if self.__isAncestor(collection):
+		if self.isAncestor(collection):
 			raise FileExistsError("%s has descendants!" % collection)
 
 		self.db[collection].drop()
@@ -182,10 +182,7 @@ class connect():
 		value["path"] = path + obj_id
 		return self.__objectExists(value, "index")
 
-	def isAncestor(self, obj_id, path):
-		return self.__isAncestor(obj_id, path)
-
-	def __isAncestor(self, obj_id, path=None):
+	def isAncestor(self, obj_id, path=None):
 		if path == None and self.__collectionExists(obj_id):
 			path = self.__getPath(obj_id)
 		else:
@@ -237,7 +234,7 @@ class connect():
 		child = self.__getChild(obj_id, path)
 		if child == None:
 			raise FileNotFoundError(obj_id + " at " + path + " doesn't have a child!")
-		if self.__isAncestor(child):
+		if self.isAncestor(child):
 			raise FileExistsError(obj_id + " at " + path + " has descendants!")
 		self.__deleteCollection(child)
 		self.__deleteObject(child, "index")
