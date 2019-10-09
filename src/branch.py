@@ -24,9 +24,9 @@ class connect():
 			print("Creating %s database..." % name)
 		self.db = client[name]
 
-		if not(self.__collectionExists("root")) or not(self.__collectionExists("index")):
+		if not(self.__collectionExists("/")) or not(self.__collectionExists("index")):
 			print("Creating root and index collections...")
-			self.__createCollection("root")
+			self.__createCollection("/")
 			self.__createCollection("index")
 
 		print("Client ready!\n")
@@ -47,7 +47,7 @@ class connect():
 		return list(self.db[collection].find({}))
 
 	def __deleteCollection(self, collection):
-		if collection in ["index","root"]:
+		if collection in ["index","/"]:
 			raise PermissionError("%s can't be deleted!" % collection)
 		if not(self.__collectionExists(collection)):
 			raise FileNotFoundError("%s doesn't exist!" % collection)
@@ -57,9 +57,7 @@ class connect():
 		self.db[collection].drop()
 
 	def __pathToCollection(self, path):
-		if path == "/":
-			return "root"
-		if path != "index":
+		if path != "index" and path != "/":
 			ret = list(self.db["index"].find({"path": path}).limit(1))
 			if len(ret) == 1:
 				return str(ret[0]["_id"])
@@ -126,7 +124,7 @@ class connect():
 	
 	def getObjects(self, path):
 		if path == "/":
-			collection = "root"
+			collection = path
 		else:
 			collection = self.__getChild(path)
 			if collection == None:
@@ -168,8 +166,8 @@ class connect():
 		return (path + obj_id)
 
 	def __getPath(self, collection):
-		if collection == "root":
-			return "/"
+		if collection == "/":
+			return collection
 
 		parent = self.__readObject(collection, "index")
 		return parent["path"]
