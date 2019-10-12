@@ -58,6 +58,8 @@ class connect():
 
 	def __pathToCollection(self, path):
 		if path != "index" and path != "/":
+			if path.endswith("/"):
+				path = path[:-1]
 			ret = list(self.db["index"].find({"path": path}).limit(1))
 			if len(ret) == 1:
 				return str(ret[0]["_id"])
